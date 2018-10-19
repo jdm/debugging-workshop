@@ -1,0 +1,39 @@
+<h1>rustfmt panic backtrace</h1>
+<pre>
+  thread 'main' panicked at 'attempted to subtract with overflow', src/utils.rs:67
+stack backtrace:
+   1:        0x10e5d480b - std::sys::backtrace::tracing::imp::write::h6528da8103c51ab9
+   2:        0x10e5d646a - std::panicking::default_hook::_$u7b$$u7b$closure$u7d$$u7d$::hbe741a5cc3c49508
+   3:        0x10e5d609a - std::panicking::default_hook::he0146e6a74621cb4
+   4:        0x10e5c91e8 - std::panicking::rust_panic_with_hook::h983af77c1a2e581b
+   5:        0x10e5d6a46 - std::panicking::begin_panic::he426e15a3766089a
+   6:        0x10e5ca178 - std::panicking::begin_panic_fmt::hdddb415186c241e7
+   7:        0x10e5d669f - rust_begin_unwind
+   8:        0x10e5fc820 - core::panicking::panic_fmt::hf4e16cb7f0d41a25
+   9:        0x10e5fcb1c - core::panicking::panic::h907815f47e914305
+  10:        0x10e0270b0 - rustfmt::utils::extra_offset::hd050e891128cb3a9
+  11:        0x10e135258 - rustfmt::expr::rewrite_call_inner::hee56ae458b312740
+  12:        0x10e134cd2 - rustfmt::expr::rewrite_call::_$u7b$$u7b$closure$u7d$$u7d$::h76fd5f2a40341cc5
+  13:        0x10e1396d2 - rustfmt::utils::binary_search::ha98342ddd92629b4
+  14:        0x10e134c10 - rustfmt::expr::rewrite_call::h1c40ba394fa9e781
+  15:        0x10e07fc41 - rustfmt::expr::_<impl rustfmt..rewrite..Rewrite for syntex_syntax..ast..Expr>::rewrite::hadd353798f9400e2
+  16:        0x10e09c82e - rustfmt::expr::rewrite_assign_rhs::h017761ba08fd218a
+  17:        0x10e09744a - rustfmt::items::_<impl rustfmt..rewrite..Rewrite for syntex_syntax..ast..Local>::rewrite::heb7a6d02784c0764
+  18:        0x10e07d9c1 - rustfmt::expr::_<impl rustfmt..rewrite..Rewrite for syntex_syntax..codemap..Spanned<syntex_syntax..ast..StmtKind>>::rewrite::h72fd686738434381
+  19:        0x10e07b9c4 - rustfmt::visitor::FmtVisitor::visit_stmt::h4290e5c547ccc782
+  20:        0x10e07e97d - rustfmt::visitor::FmtVisitor::visit_block::h107d6c6ec8e8fa67
+  21:        0x10e082afd - rustfmt::visitor::FmtVisitor::visit_fn::h3f83ea059aefbd28
+  22:        0x10e07cfa9 - rustfmt::visitor::FmtVisitor::visit_item::h80aaef5c3fdd0a59
+  23:        0x10e093d43 - rustfmt::visitor::FmtVisitor::walk_mod_items::h10073ce96dabb935
+  24:        0x10e018a42 - rustfmt::visitor::FmtVisitor::format_separate_mod::hb9dee59eb6524aa7
+  25:        0x10e016c85 - rustfmt::format_ast::h9e01b99ec1dd96f3
+  26:        0x10e011de5 - rustfmt::format_input::h172d6158dc0143cd
+  27:        0x10e00e779 - rustfmt::run::hc3c3f45cca8c2090
+  28:        0x10dfdddbf - rustfmt::execute::hb4cd1c1129ef1923
+  29:        0x10dfed75f - rustfmt::main::h72bee7f7a14fa8c0
+  30:        0x10e5d5c7d - std::panicking::try::call::h852b0d5f2eec25e4
+  31:        0x10e5d923b - __rust_try
+  32:        0x10e5d91d5 - __rust_maybe_catch_panic
+  33:        0x10e5d5aa1 - std::rt::lang_start::hfe4efe1fc39e4a30
+  34:        0x10dff07d9 - main
+</pre>

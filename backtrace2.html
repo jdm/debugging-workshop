@@ -1,0 +1,53 @@
+<h1>Servo assertion failure backtrace</h1>
+<pre>
+assertion failed: `(left == right)`
+  left: `1280`,
+ right: `0`: Unexpected WebGL error: 0x500 (1280) (thread WebGLThread, at components/canvas/webgl_thread.rs:1091)
+stack backtrace:
+   0:        0x1153a7084 - backtrace::backtrace::trace::h3f40dde6d30f3d0c
+                        at /Users/jdm/.cargo/registry/src/github.com-1ecc6299db9ec823/backtrace-0.3.2/src/backtrace/mod.rs:42
+   1:        0x1153a907c - backtrace::capture::Backtrace::new::hc1e5a9249119d135
+                        at /Users/jdm/.cargo/registry/src/github.com-1ecc6299db9ec823/backtrace-0.3.2/src/capture.rs:64
+   2:        0x10e78add9 - servo::main::_$u7b$$u7b$closure$u7d$$u7d$::hc806d9fd4ac21272
+                        at ports/servo/non_android_main.rs:122
+   3:        0x1153dbb28 - std::panicking::rust_panic_with_hook::h9cbbe24ee15fbb6f
+                        at libstd/panicking.rs:481
+   4:        0x1153db67c - std::panicking::continue_panic_fmt::h1eb70c41ead31f53
+                        at libstd/panicking.rs:391
+   5:        0x1153db5d0 - std::panicking::begin_panic_fmt::h90618bc789c907c4
+                        at libstd/panicking.rs:346
+   6:        0x113088980 - canvas::webgl_thread::WebGLImpl::apply::h4f5b64c927c62e7a
+                        at components/canvas/webgl_thread.rs:1091
+   7:        0x11301c7f2 - canvas::gl_context::GLContextWrapper::apply_command::h008b30b6b5aa8840
+                        at components/canvas/gl_context.rs:150
+   8:        0x1130785ff - _$LT$canvas..webgl_thread..WebGLThread$LT$VR$C$$u20$OB$GT$$GT$::handle_webgl_command::h416bcce39b660f03
+                        at components/canvas/webgl_thread.rs:143
+   9:        0x113077c07 - _$LT$canvas..webgl_thread..WebGLThread$LT$VR$C$$u20$OB$GT$$GT$::handle_msg::hfb2e0751945288ec
+                        at components/canvas/webgl_thread.rs:115
+  10:        0x1130777f3 - _$LT$canvas..webgl_thread..WebGLThread$LT$VR$C$$u20$OB$GT$$GT$::start::_$u7b$$u7b$closure$u7d$$u7d$::h6a53a083c9ea7216
+                        at components/canvas/webgl_thread.rs:79
+  11:        0x11311fa95 - std::sys_common::backtrace::__rust_begin_short_backtrace::h79e4fe12ee330362
+                        at /Users/travis/build/rust-lang/rust/src/libstd/sys_common/backtrace.rs:136
+  12:        0x11306a832 - std::thread::Builder::spawn::_$u7b$$u7b$closure$u7d$$u7d$::_$u7b$$u7b$closure$u7d$$u7d$::hbe43824104fe3c9b
+                        at /Users/travis/build/rust-lang/rust/src/libstd/thread/mod.rs:409
+  13:        0x112fe81b5 - _$LT$std..panic..AssertUnwindSafe$LT$F$GT$$u20$as$u20$core..ops..function..FnOnce$LT$$LP$$RP$$GT$$GT$::call_once::h9207c31ad5b51c39
+                        at /Users/travis/build/rust-lang/rust/src/libstd/panic.rs:313
+  14:        0x112f56361 - std::panicking::try::do_call::he531b6332e3bfa86
+                        at /Users/travis/build/rust-lang/rust/src/libstd/panicking.rs:310
+  15:        0x1153e9d5e - __rust_maybe_catch_panic
+                        at libpanic_unwind/lib.rs:103
+  16:        0x112f56153 - std::panicking::try::h0f0746d25ce313e8
+                        at /Users/travis/build/rust-lang/rust/src/libstd/panicking.rs:289
+  17:        0x112feb065 - std::panic::catch_unwind::h0f4a11aee8a8cd5e
+                        at /Users/travis/build/rust-lang/rust/src/libstd/panic.rs:392
+  18:        0x11306a3cb - std::thread::Builder::spawn::_$u7b$$u7b$closure$u7d$$u7d$::h4ca3e1ae80112864
+                        at /Users/travis/build/rust-lang/rust/src/libstd/thread/mod.rs:408
+  19:        0x1130709f9 - _$LT$F$u20$as$u20$alloc..boxed..FnBox$LT$A$GT$$GT$::call_box::h557834050e3c8c56
+                        at /Users/travis/build/rust-lang/rust/src/liballoc/boxed.rs:646
+  20:        0x1153de4f7 - std::sys_common::thread::start_thread::h3be874dd9ae84dff
+                        at libstd/sys_common/thread.rs:24
+  21:        0x1153c0af8 - std::sys::unix::thread::Thread::new::thread_start::he11614a9fa49633c
+                        at libstd/sys/unix/thread.rs:90
+  22:     0x7fffc07f893a - _pthread_body
+  23:     0x7fffc07f8886 - _pthread_start
+</pre>

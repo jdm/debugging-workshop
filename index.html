@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Awesome Presentation</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Where We're Going, We Don't Need Println!
+
+### (except that sometimes we do)
+
+???
+
+Notes for the _first_ slide!
+
+---
+
+# Agenda
+
+1. Effective println!
+
+2. Logging and the logging ecosystem
+
+3. Assertions
+
+4. Backtraces and panics
+
+5. lldb & gdb
+
+6. record & replay debugging
+
+---
+
+# println! review
+
+Printing arguments:
+
+```rust
+println!("Hello {} {} {}!", "Rust", "Belt", "Rust");
+```
+
+yields
+
+```
+Hello Rust Belt Rust!
+```
+
+---
+
+# println! review
+
+Printing named arguments:
+
+```rust
+println!("Hello {first} {second} {first}!", first="Rust", second="Belt");
+```
+
+yields
+
+```
+Hello Rust Belt Rust!
+```
+
+---
+
+# println! review
+
+Printing _any_ value:
+
+```rust
+let values = vec![1, 2, 3, 4, 5];
+println!("{}", values);
+```
+
+---
+
+# println! review
+
+Printing _any_ value:
+
+```rust
+let values = vec![1, 2, 3, 4, 5];
+println!("{}", values);
+```
+
+yields
+
+```
+error[E0277]: `std::vec::Vec<{integer}>` doesn't implement `std::fmt::Display`
+ --> src/main.rs:3:20
+  |
+3 |     println!("{}", values);
+  |                    ^^^^^^ `std::vec::Vec<{integer}>` cannot be formatted with the default formatter
+  |
+  = help: the trait `std::fmt::Display` is not implemented for `std::vec::Vec<{integer}>`
+  = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+  = note: required by `std::fmt::Display::fmt`
+
+error: aborting due to previous error
+```
+
+---
+
+# println! review
+
+Printing _any_ value:
+
+```rust
+let values = vec![1, 2, 3, 4, 5];
+println!("{:?}", values);
+```
+
+yields
+
+```
+[1, 2, 3, 4, 5]
+```
+
+---
+
+# println! review
+
+Printing _any_ value:
+
+```rust
+struct Conference {
+  tickets: Vec<String>,
+}
+
+let conf = Conference {
+  tickets: vec![
+    "Jane".to_string(),
+    "Eduardo".to_string(),
+    "Ashley".to_string(),
+  ],
+};
+
+println!("{:?}", conf);
+```
+
+---
+
+# println! review
+
+Printing _any_ value:
+
+```rust
+struct Conference {
+  tickets: Vec<String>,
+}
+
+let conf = Conference {
+  tickets: vec![
+    "Jane".to_string(),
+    "Eduardo".to_string(),
+    "Ashley".to_string(),
+  ],
+};
+
+println!("{:?}", conf);
+```
+
+yields
+
+```
+error[E0277]: `main::Conference` doesn't implement `std::fmt::Debug`
+  --> src/main.rs:14:18
+   |
+14 | println!("{:?}", conf);
+   |                  ^^^^ `main::Conference` cannot be formatted using `{:?}`
+   |
+   = help: the trait `std::fmt::Debug` is not implemented for `main::Conference`
+   = note: add `#[derive(Debug)]` or manually implement `std::fmt::Debug`
+   = note: required by `std::fmt::Debug::fmt`
+
+error: aborting due to previous error
+```
+
+---
+
+# println! review
+
+Printing _any_ value:
+
+```rust
+#[derive(Debug)]
+struct Conference {
+  tickets: Vec<String>,
+}
+
+let conf = Conference {
+  tickets: vec![
+    "Jane".to_string(),
+    "Eduardo".to_string(),
+    "Ashley".to_string(),
+  ],
+};
+
+println!("{:?}", conf);
+```
+
+yields
+
+```
+Conference { tickets: ["Jane", "Eduardo", "Ashley"] }
+```
+
+---
+
+# println! review
+
+Printing _any_ named value:
+
+```rust
+#[derive(Debug)]
+struct Conference {
+  tickets: Vec<String>,
+}
+
+let conf = Conference {
+  tickets: vec![
+    "Jane".to_string(),
+    "Eduardo".to_string(),
+    "Ashley".to_string(),
+  ],
+};
+
+println!("{value:?}", value=conf);
+```
+
+yields
+
+```
+Conference { tickets: ["Jane", "Eduardo", "Ashley"] }
+```
+
+---
+
+# println! review
+
+Pretty printing:
+
+```rust
+#[derive(Debug)]
+struct Conference {
+  tickets: Vec<String>,
+}
+
+let conf = Conference {
+  tickets: vec![
+    "Jane".to_string(),
+    "Eduardo".to_string(),
+    "Ashley".to_string(),
+  ],
+};
+
+println!("{:#?}", conf);
+```
+
+yields
+
+```
+Conference {
+    tickets: [
+        "Jane",
+        "Eduardo",
+        "Ashley"
+    ]
+}
+```
+
+---
+
+# println! review
+
+Other useful specifiers:
+
+```rust
+let s = "Hello Rust Belt Rust!";
+let bitmask = 0x3A;
+println!("{:p}, {:b}", &s, bitmask);
+```
+
+yields
+
+```
+0x7ffddbe38430, 111010
+```
+
+See the <a href="https://doc.rust-lang.org/std/fmt/#formatting-traits">full list</a> of supported formats.
+
+---
+
+# Manual Debug implementation
+
+Sometimes it can be useful to override the default Debug implementation:
+
+```rust
+#[derive(Debug)]
+struct MemoryBuffer {
+  buffer: [u8; 1024],
+  permissions: u32,
+  address: usize,
+}
+
+println!("{:?}", some_buffer);
+```
+
+---
+
+# Manual Debug implementation
+
+Sometimes it can be useful to override the default Debug implementation:
+
+```rust
+#[derive(Debug)]
+struct MemoryBuffer {
+  buffer: [u8; 1024],
+  permissions: u32,
+  address: usize,
+}
+
+println!("{:?}", some_buffer);
+```
+
+yields
+
+```
+MemoryBuffer { buffer: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+```
+
+(etc.)
+
+---
+
+# Manual Debug implementation
+
+```rust
+use std::fmt;
+impl fmt::Debug for MemoryBuffer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "MemoryBuffer {{ permissions: {:b}, address: {:x} }}",
+               self.permissions, self.address)
+
+    }
+}
+```
+
+yields
+
+
+```
+MemoryBuffer { permissions: 101101, address: 0x7F23888B10 }
+```
+
+---
+
+# Challenge:
+
+Open up the `println` crate and observe that the final output is `error: buffer is not readonly`.
+Fix the terrible debug output by adding a `TruncatedDebug` type that can wrap any existing type so:
+
+```rust
+#[derive(Debug)]
+struct MemoryBuffer {
+  buffer: [u8; 32],
+  permissions: HashMap<usize, usize>,
+}
+```
+
+becomes
+
+```rust
+#[derive(Debug)]
+struct MemoryBuffer {
+  buffer: TruncatedDebug<[u8; 32]>,
+  permissions: TruncatedDebug<HashMap<usize, usize>>,
+}
+```
+
+and the output becomes:
+
+```
+MemoryBuffer { buffer: [0, 0, 0, 0, 0, 0, 0...], permissions: { 0 => ReadOnly, 27 => Read...} }
+```
+
+Then try to solve the error that causes the read-only buffer to be writeable.
+
+---
+
+# Logging
+
+`println!` is a blunt instrument, and does not belong in released code.
+
+What if we want useful output in public code?
+
+---
+
+# The `log` crate
+
+The [log](https://crates.io/crates/log) crate is a logging interface.
+
+It does not force any particular output.
+
+---
+
+# The `log` crate
+
+API:
+
+```rust
+trace!("extremely verbose debugging information");
+
+debug!("verbose debugging information");
+
+info!("less verbose informative message");
+
+warn!("warning: something happened");
+
+error!("error: something bad happened");
+```
+
+The underlying logging backend receives information about
+the callers and the severity of each message.
+
+---
+
+# Some useful logging backends
+
+* [`env_logger`](https://crates.io/crates/env_logger) - customize output from `RUST_LOG` environment variable
+
+* [`stderrlog`](https://crates.io/crates/stderrlog) - always log to stderr
+
+* [`flexi_logger`](https://crates.io/crates/flexi_logger) - write to multiple outputs, rotate logs, dynamic changes, etc.
+
+* [`android_logger`](https://crates.io/crates/android_logger) - log output to Android's logcat
+
+---
+
+# Understanding `RUST_LOG`
+
+When using [`env_logger`](https://docs.rs/env_logger/*/env_logger/) and compatible crates, logging behaviour is
+controlled by the `RUST_LOG` environment variable.
+
+```
+cargo run
+```
+
+may show no output, but
+
+```
+RUST_LOG=warn cargo run
+```
+
+may yield:
+
+```
+WARN 2018-10-18T13:38:49Z: myapp: ignoring outdated profile data
+```
+
+---
+
+# Understanding `RUST_LOG`
+
+Different logging levels can be enabled on a per-crate and per-module basis.
+
+#### Examples
+
+Show warnings/errors for all crates:
+```
+RUST_LOG=warn
+```
+
+Show warnings/errors from the crate `myapp`, and errors from the `regex` crate:
+```
+RUST_LOG=myapp=warn,regex=error
+```
+
+Show:
+* warnings from the crate `myapp`
+* unless the source module is `ffi` `myapp` (show trace and higher)
+* show info and higher for the `windows` module in the `platform` module in the `gl` crate
+
+```
+RUST_LOG=myapp=warn,myapp::ffi=trace,gl::platform::windows=info
+```
+
+---
+
+# Challenge
+
+Open up the `logging` crate; observe that the code looks very similar to the previous
+problem.
+
+Using the `log` and `env_logger` crates, add appropriate logging statements
+to the MemoryBuffer API, then verify they appear with the appropriate RUST_LOG values.
+
+---
+
+# Assertions
+
+Useful tools for documenting and validating assumptions.
+
+`assert!(true)` has no effect.
+
+`assert!(false)` causes a panic:
+
+```
+thread 'main' panicked at 'assertion failed: false', src/main.rs:6:1
+```
+
+---
+
+# Assertions
+
+Can also provide more informative error messages:
+
+```rust
+assert!(new_size < self.capacity, "Not enough capacity for new elements: {}", new_size);
+```
+
+```
+thread 'main' panicked at 'Not enough capacity for new elements: 5', src/main.rs:6:1
+```
+
+---
+
+# Assertions
+
+Assertions will always be executed, unlike C/C++.
+
+If concerned about performance, `debug_assert!(...)` is not included in release builds.
+
+---
+
+# Assertions
+
+Output of equality assertions isn't very helpful:
+
+```rust
+    let a = 10;
+    let b = 11;
+    assert!(a == b);
+```
+
+yields
+
+```
+thread 'main' panicked at 'assertion failed: a == b', src/main.rs:8:5
+```
+
+---
+
+# Assertions
+
+Instead, use `assert_eq!(a, b)` and `assert_ne!(a, b)`:
+
+```rust
+    let a = 10;
+    let b = 11;
+    assert_eq!(a, b);
+```
+
+yields
+
+```
+thread 'main' panicked at 'assertion failed: `(left == right)`
+  left: `10`,
+ right: `11`', src/main.rs:8:5
+```
+
+---
+
+# Assertions
+
+Other comparisons either require `assert!()` or [`more_asserts`](https://crates.io/crates/more-asserts) crate.
+
+```rust
+    assert!(a < b);
+    assert!(a <= b);
+    assert!(a > b);
+    assert!(a >= b);
+```
+
+vs.
+
+```rust
+    assert_lt!(a, b);
+    assert_leq!(a, b);
+    assert_gt!(a, b);
+    assert_geq!(a, b);
+```
+
+---
+
+# Backtraces
+
+A particularly interesting feature of assertion failures is this message:
+
+```
+note: Run with `RUST_BACKTRACE=1` for a backtrace.
+```
+
+If we do that, we get:
+
+```
+thread 'main' panicked at 'Not enough capacity for new elements: 5', src/main.rs:6:5
+stack backtrace:
+   0: std::sys::unix::backtrace::tracing::imp::unwind_backtrace
+             at libstd/sys/unix/backtrace/tracing/gcc_s.rs:49
+   1: std::sys_common::backtrace::print
+             at libstd/sys_common/backtrace.rs:71
+             at libstd/sys_common/backtrace.rs:59
+   2: std::panicking::default_hook::{{closure}}
+             at libstd/panicking.rs:211
+   3: std::panicking::default_hook
+             at libstd/panicking.rs:227
+   4: <std::panicking::begin_panic::PanicPayload<A> as core::panic::BoxMeUp>::get
+             at libstd/panicking.rs:511
+   5: std::panicking::continue_panic_fmt
+             at libstd/panicking.rs:426
+   6: std::panicking::try::do_call
+             at libstd/panicking.rs:413
+   7: myapp::main
+             at src/main.rs:6
+   8: std::rt::lang_start::{{closure}}
+             at /Users/travis/build/rust-lang/rust/src/libstd/rt.rs:74
+   9: std::panicking::try::do_call
+             at libstd/rt.rs:59
+             at libstd/panicking.rs:310
+  10: panic_unwind::dwarf::eh::read_encoded_pointer
+             at libpanic_unwind/lib.rs:105
+  11: std::sys_common::at_exit_imp::push
+             at libstd/panicking.rs:289
+             at libstd/panic.rs:392
+             at libstd/rt.rs:58
+  12: std::rt::lang_start
+             at /Users/travis/build/rust-lang/rust/src/libstd/rt.rs:74
+  13: myapp::main
+```
+
+---
+
+# Backtraces
+
+There's a lot of intimidating output here, so let's step through it:
+
+```
+   0: std::sys::unix::backtrace::tracing::imp::unwind_backtrace
+             at libstd/sys/unix/backtrace/tracing/gcc_s.rs:49
+   1: std::sys_common::backtrace::print
+             at libstd/sys_common/backtrace.rs:71
+             at libstd/sys_common/backtrace.rs:59
+   2: std::panicking::default_hook::{{closure}}
+             at libstd/panicking.rs:211
+   3: std::panicking::default_hook
+             at libstd/panicking.rs:227
+   4: <std::panicking::begin_panic::PanicPayload<A> as core::panic::BoxMeUp>::get
+             at libstd/panicking.rs:511
+   5: std::panicking::continue_panic_fmt
+             at libstd/panicking.rs:426
+   6: std::panicking::try::do_call
+             at libstd/panicking.rs:413
+```
+
+These are stack frames with the most recent at the top.
+
+Each frame contains the name of the function being executed, and the source file
+corresponding to it.
+
+These are all panicking infrastructure and don't matter to us.
+
+---
+
+# Backtraces
+
+```
+   7: myapp::main
+             at src/main.rs:6
+   8: std::rt::lang_start::{{closure}}
+             at /Users/travis/build/rust-lang/rust/src/libstd/rt.rs:74
+   9: std::panicking::try::do_call
+             at libstd/rt.rs:59
+             at libstd/panicking.rs:310
+  10: panic_unwind::dwarf::eh::read_encoded_pointer
+             at libpanic_unwind/lib.rs:105
+  11: std::sys_common::at_exit_imp::push
+             at libstd/panicking.rs:289
+             at libstd/panic.rs:392
+             at libstd/rt.rs:58
+  12: std::rt::lang_start
+             at /Users/travis/build/rust-lang/rust/src/libstd/rt.rs:74
+  13: myapp::main
+```
+
+Frame 7 is the first one that matters to us, since it's our code.
+
+Frames 8-12 are Rust runtime infrastructure and don't matter to us.
+
+Frame 13 does not tell us anything useful.
+
+---
+
+# Backtraces
+
+[More practice](backtrace.html) reading backtraces.
+
+[Even more practice](backtrace2.html) reading backtraces.
+
+---
+
+# Backtraces
+
+Backtraces don't just come from critical failures.
+
+The [backtrace](https://crates.io/crates/backtrace) crate can generate
+backtraces on-demand.
+
+The resulting stack traces include these frames at the beginning:
+
+```
+   0:        0x1153a7084 - backtrace::backtrace::trace::h3f40dde6d30f3d0c
+                        at /Users/jdm/.cargo/registry/src/github.com-1ecc6299db9ec823/backtrace-0.3.2/src/backtrace/mod.rs:42
+   1:        0x1153a907c - backtrace::capture::Backtrace::new::hc1e5a9249119d135
+                        at /Users/jdm/.cargo/registry/src/github.com-1ecc6299db9ec823/backtrace-0.3.2/src/capture.rs:64
+```
+
+---
+
+# Backtraces
+
+To create a `Backtrace` object, use `Backtrace::new()`. To print it, use `{:?}`.
+
+`Backtrace` objects can be useful for debugging failures in asynchronous operations.
+
+---
+
+# Backtraces
+
+[This backtrace](backtrace2.html) from Servo shows an assertion failure in the thread
+that performs OpenGL operations.
+
+The operations are initiated from another thread.
+
+Backtraces only include stack frames for the active thread.
+
+How can we identify the code that initiated the operation?
+
+---
+
+# Backtraces
+
+Original code:
+
+```rust
+enum Message {
+  SomeOperation(...),
+  AnotherOperation(...),
+}
+
+struct Controller {
+  sender: Sender<Message>,
+}
+
+impl Controller {
+  fn do(message: Message) {
+    self.sender.send(message);
+  }
+}
+```
+
+---
+
+# Backtraces
+
+New code:
+
+```rust
+extern crate backtrace;
+use backtrace::Backtrace;
+
+enum Message {
+  SomeOperation(...),
+  AnotherOperation(...),
+}
+
+struct Controller {
+  sender: Sender<(Backtrace, Message)>,
+}
+
+impl Controller {
+  fn do(message: Message) {
+    self.sender.send((Backtrace::new(), message));
+  }
+}
+```
+
+This will automatically capture a backtrace for each operation.
+
+---
+
+# Backtraces
+
+Original code:
+
+```rust
+fn do_operations(receiver: Receiver<Message>) {
+  while let Ok(msg) = receiver.recv() {
+    match msg {
+      Message::SomeOperation(...) => { ... }
+      Message::AnotherOperation(...) => { ... }
+    }
+
+    assert!(!some_error_condition);
+  }
+}
+```
+
+---
+
+# Backtraces
+
+New code:
+
+```rust
+fn do_operations(receiver: Receiver<(Backtrace, Message)>) {
+  while let Ok((backtrace, msg)) = receiver.recv() {
+    match msg {
+      Message::SomeOperation(...) => { ... }
+      Message::AnotherOperation(...) => { ... }
+    }
+
+    if some_error_condition {
+      eprintln!("{:?} failed:\n{:?}", msg, backtrace);
+    }
+    assert!(!some_error_condition);
+  }
+}
+```
+
+This will show which operation failed and the code that triggered it.
+
+---
+
+# Challenge:
+
+Open up the `graphics` crate and observe that `cargo run` results in a panic.
+
+It's an implementation of a simplistic graphics rendering engine that has two
+commands: draw a rectangle, and return the rendered pixels. It runs in its own
+thread because Rust supports fearless concurrency.
+
+Use your knowledge of backtraces to identify the code that is responsible,
+then add assertions that prevent the incorrect operations from reaching the
+graphics backend.
+
+---
+
+# Debugging Rust programs
+
+We will focus on using `gdb` and `lldb` from the MacOS and Linux terminals.
+
+I have never tried to use these tools on Windows or make use of IDE integrations
+on non-Windows platforms, so I cannot provide any assistance for other setups.
+
+Ubuntu virtual machines with Rust and gdb are available for anybody with a setup
+that does not work for some reason.
+
+---
+
+# Debugger fundamentals
+
+Debuggers allow a user to pause a program and investigate its memory.
+
+They also allow a user to continue execution in a controlled manner (stepping).
+
+This can lead to much more efficient investigations than:
+* adding some printlns
+* recompiling
+* reviewing the new output
+* adding different printlns
+* recompiling
+* reviewing
+* etc.
+
+---
+
+# Starting the debugger
+
+Need to get a path to a binary for the debugger to work with:
+
+```
+$ cargo run
+    Finished dev [unoptimized + debuginfo] target(s) in 0.03s
+     Running `target/debug/myapp`
+```
+
+The binary is `target/debug/myapp`, therefore:
+
+`gdb target/debug/myapp` or `rust-lldb target/debug/myapp`
+
+Similary, for unit tests:
+
+```
+    Finished dev [unoptimized + debuginfo] target(s) in 0.83s
+     Running target/debug/deps/myapp-2c64b08b53e92ccb
+```
+
+Use:
+* `gdb target/debug/deps/myapp-2c64b08b53e92ccb`
+* `rust-lldb target/debug/deps/myapp-2c64b08b53e92ccb`
+
+---
+
+# Starting the debugger
+
+There is now a prompt like:
+
+```
+(lldb)
+```
+
+or:
+
+```
+(gdb)
+```
+
+To start the program, type `run` (or `r` for short).
+
+You will eventually end up with another prompt after a message like:
+
+```
+Process 31412 exited with status = 101 (0x00000065)
+```
+
+This means the program is no longer executing.
+
+`quit` (or `q`) will allow you to exit,
+or `run` (or `r`) will restart it from the beginning.
+
+---
+
+# Catching a panic
+
+We would like to investigate the state of the program when the panic occurs.
+
+This is the purpose of a `breakpoint`. It will interrupt program execution
+whenever a particular function or source line is reached.
+
+To catch any panic, we can set a breakpoint on the `rust_panic` symbol.
+
+```
+(lldb) break set -n rust_panic
+Breakpoint 1: where = myapp`rust_panic + 20 at panicking.rs:559, address = 0x00000001001a4be4
+```
+
+(or `b rust_panic` for short)
+
+---
+
+# Catching a panic
+
+Now if we run the program (`run`), we should see output like this:
+
+```
+Process 32325 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+    frame #0: 0x0000000100010da4 debugger`rust_panic at panicking.rs:559 [opt]
+Target 0: (debugger) stopped.
+(lldb)
+```
+
+Now we can look at the current stack with the `bt` command:
+
+```
+(lldb) bt
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+  * frame #0: 0x0000000100010da4 debugger`rust_panic at panicking.rs:559 [opt]
+    frame #1: 0x0000000100010d88 debugger`std::panicking::rust_panic_with_hook::h81c4f3add25e6667 at panicking.rs:531 [opt]
+    frame #2: 0x0000000100001c68 debugger`std::panicking::begin_panic::h79f44b5e4a205c85(msg="assertion failed: !self.is_square ||
+    (self.p2.x - self.p1.x).abs() == (self.p2.y - self.p1.y).abs()", file_line_col=&0x10005e300) at panicking.rs:445
+    frame #3: 0x00000001000015b9 debugger`_$LT$debugger..Rectangle$u20$as$u20$core..ops..drop..Drop$GT$::drop::h822315ada667debe(self=&0x7fff5fbff770) at main.rs:77
+    frame #4: 0x0000000100001025 debugger`core::ptr::drop_in_place::h584d867516b01f87((null)=&0x7fff5fbff770) at ptr.rs:59
+    frame #5: 0x0000000100001b61 debugger`debugger::main::h16f216c0369530cf at main.rs:129
+    frame #6: 0x00000001000020f2 debugger`std::rt::lang_start::_$u7b$$u7b$closure$u7d$$u7d$::h0101b19177a60ab2 at rt.rs:74
+    frame #7: 0x0000000100010728 debugger`std::panicking::try::do_call::h8612b9f5e5124596 [inlined] std::rt::lang_start_internal::_$u7b$$u7b$closure$u7d$$u7d$::h4e9c074e13c9f30e at rt.rs:59 [opt]
+    frame #8: 0x000000010001071c debugger`std::panicking::try::do_call::h8612b9f5e5124596 at panicking.rs:310 [opt]
+    frame #9: 0x000000010001cccf debugger`__rust_maybe_catch_panic at lib.rs:105 [opt]
+    frame #10: 0x0000000100008fb2 debugger`std::rt::lang_start_internal::h9798e11bacf3193f [inlined] std::panicking::try::h634fa8950c7f24df at panicking.rs:289 [opt]
+    frame #11: 0x0000000100008f7f debugger`std::rt::lang_start_internal::h9798e11bacf3193f [inlined] std::panic::catch_unwind::h1ffc5075a55a1e65 at panic.rs:392 [opt]
+    frame #12: 0x0000000100008f7f debugger`std::rt::lang_start_internal::h9798e11bacf3193f at rt.rs:58 [opt]
+    frame #13: 0x00000001000020d2 debugger`std::rt::lang_start::h2f289148f0ad41b8(main=&0x100001760, argc=1, argv=&0x7fff5fbff978) at rt.rs:74
+    frame #14: 0x0000000100001bf5 debugger`main + 37
+    frame #15: 0x00007fffdc3e4235 libdyld.dylib`start + 1
+    frame #16: 0x00007fffdc3e4235 libdyld.dylib`start + 1 ```
+
+---
+
+# Catching a panic
+
+The `*` shows which stack frame the debugger thinks is active. The active frame can be changed
+with the `frame select` command (`f` for short):
+
+```
+(lldb) frame select 3
+frame #3: 0x00000001000015b9 debugger`_$LT$debugger..Rectangle$u20$as$u20$core..ops..drop..Drop$GT$::drop::h822315ada667debe(self=&0x7fff5fbff770) at main.rs:77
+   74
+   75  	impl Drop for Rectangle {
+   76  	    fn drop(&mut self) {
+-> 77  	        assert!(!self.is_square ||
+   78  	                (self.p2.x - self.p1.x).abs() == (self.p2.y - self.p1.y).abs());
+   79  	    }
+   80  	}
+(lldb)
+```
+
+---
+
+# Printing values
+
+To print the value of a name that is accessible in the active stack frame, use `print name`
+(or `p name`):
+
+```
+(lldb) p self
+(debugger::Rectangle *) $0 = &0x7fff5fbff770
+(lldb) p self->p1
+(debugger::Point) $1 = Point {
+x: 0,
+y: 4.5
+}
+(lldb) p self->p2
+(debugger::Point) $2 = Point {
+x: 1,
+y: 5.4000000000000004
+}
+(lldb) p *self
+(debugger::Rectangle) $3 = Rectangle {
+p1: Point {
+x: 0,
+y: 4.5
+},
+p2: Point {
+x: 1,
+y: 5.4000000000000004
+},
+is_square: true
+}
+```
+
+---
+
+# Setting an earlier breakpoint
+
+This assertion failure tells us that something is wrong, but does not show us the cause.
+We should set a breakpoint earlier in the program so we can catch it.
+
+Breakpoints can be set on individual lines of source files, not just by name.
+
+```
+(lldb) break set -f main.rs -l 115
+Breakpoint 2: where = debugger`debugger::main::h16f216c0369530cf + 674 at main.rs:115, address = 0x0000000100001a02
+```
+
+(or `b main.rs:115` is easier)
+
+Either restart the program (`run`) or continue execution (`continue`) if the target line will
+be executed in the future of the current run.
+
+---
+
+# Stepping
+
+When a non-panic breakpoint is reached, it is possible to control program execution.
+
+```
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 2.1
+    frame #0: 0x0000000100001a02 debugger`debugger::main::h16f216c0369530cf at main.rs:115
+   112 	        Point::new(1.0, 1.0),
+   113 	    );
+   114
+-> 115 	    rectangle.translate(1.0, 0.0);
+   116
+   117 	    // Okay! Mutable objects can call mutable methods
+   118 	    square.translate(1.0, 1.0);
+Target 0: (debugger) stopped.
+```
+
+The `->` shows which line will be executed _next_. We can examine `rectangle`, execute the
+line, then examine it again to be sure:
+
+```
+(lldb) p rectangle
+(debugger::Rectangle) $4 = Rectangle {
+p1: Point {
+x: 0,
+y: 0
+},
+p2: Point {
+x: 3,
+y: 4
+},
+is_square: false
+}
+```
+
+---
+
+# Stepping
+
+The `next` command (or `n`) instructs the debugger to advance to the next line.
+
+```
+(lldb) next
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step over
+    frame #0: 0x0000000100001a18 debugger`debugger::main::h16f216c0369530cf at main.rs:118
+   115 	    rectangle.translate(1.0, 0.0);
+   116
+   117 	    // Okay! Mutable objects can call mutable methods
+-> 118 	    square.translate(1.0, 1.0);
+   119
+   120 	    let pair = Pair(Box::new(1), Box::new(2));
+   121
+Target 0: (debugger) stopped.
+(lldb) p rectangle
+(debugger::Rectangle) $5 = Rectangle {
+p1: Point {
+x: 1,
+y: 0
+},
+p2: Point {
+x: 4,
+y: 4
+},
+is_square: false
+}
+```
+
+---
+
+# Stepping
+
+The `step` command (or `s`) instructs the debugger to step _into_ the current expression.
+
+```
+(lldb) s
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step in
+    frame #0: 0x0000000100001426 debugger`debugger::Rectangle::translate::h1c7b3f9a8c576bf7(self=&0x7fff5fbff770, x=1, y=1) at main.rs:60
+   57  	    // This method requires the caller object to be mutable
+   58  	    // `&mut self` desugars to `self: &mut Self`
+   59  	    fn translate(&mut self, x: f64, y: f64) {
+-> 60  	        self.p1.x += x;
+   61  	        self.p2.x += x;
+   62
+   63  	        self.p1.y += y;
+Target 0: (debugger) stopped.
+```
+
+We can use `finish` (or `f`) to continue execution until we return to the caller.
+
+```
+(lldb) finish
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step out
+    frame #0: 0x0000000100001a35 debugger`debugger::main::h16f216c0369530cf at main.rs:118
+   115 	    rectangle.translate(1.0, 0.0);
+   116
+   117 	    // Okay! Mutable objects can call mutable methods
+-> 118 	    square.translate(1.0, 1.0);
+   119
+   120 	    let pair = Pair(Box::new(1), Box::new(2));
+   121
+Target 0: (debugger) stopped.
+```
+
+---
+
+# Stepping oddities
+
+Sometimes you will try to step into code that you do not have the source for:
+
+```
+(lldb) n
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step over
+    frame #0: 0x0000000100001a4c debugger`debugger::main::h16f216c0369530cf at main.rs:120
+   117 	    // Okay! Mutable objects can call mutable methods
+   118 	    square.translate(1.0, 1.0);
+   119
+-> 120 	    let pair = Pair(Box::new(1), Box::new(2));
+   121
+   122 	    square.scale(1.0, 0.9);
+   123
+Target 0: (debugger) stopped.
+(lldb) s
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step in
+    frame #0: 0x0000000100001a4c debugger`debugger::main::h16f216c0369530cf [inlined] _$LT$alloc..boxed..Box$LT$T$GT$$GT$::new::h679372de8566912f(x=1) at boxed.rs:96
+```
+
+---
+
+# Stepping oddities
+
+You can keep stepping blindly:
+
+```
+(lldb) s
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step in
+    frame #0: 0x0000000100000de0 debugger`alloc::alloc::exchange_malloc::h9035999dc6bd6151(size=4, align=4) at alloc.rs:153
+Target 0: (debugger) stopped.
+(lldb) s
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step in
+    frame #0: 0x0000000100000df1 debugger`alloc::alloc::exchange_malloc::h9035999dc6bd6151(size=4, align=4) at alloc.rs:156
+Target 0: (debugger) stopped.
+(lldb) s
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step in
+    frame #0: 0x00000001000028e0 debugger`core::alloc::Layout::from_size_align_unchecked::h9d71529bd9187db0(size=4, align=4) at alloc.rs:114
+Target 0: (debugger) stopped.
+```
+
+---
+
+# Stepping oddities
+
+You can also use `finish` to return to code that you can read:
+
+```
+(lldb) fin
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step out
+Return value: (core::alloc::Layout) $6 = Layout {
+size_: 4,
+align_: NonZeroUsize(NonZero<usize>(4))
+}
+
+    frame #0: 0x0000000100000dfe debugger`alloc::alloc::exchange_malloc::h9035999dc6bd6151(size=4, align=4) at alloc.rs:156
+Target 0: (debugger) stopped.
+(lldb) fin
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step out
+Return value: (unsigned char *) $7 = &0x100617018
+
+    frame #0: 0x0000000100001a5e debugger`debugger::main::h16f216c0369530cf [inlined] _$LT$alloc..boxed..Box$LT$T$GT$$GT$::new::h679372de8566912f(x=1) at boxed.rs:96
+Target 0: (debugger) stopped.
+(lldb) fin
+Process 32348 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = step out
+    frame #0: 0x0000000100001a81 debugger`debugger::main::h16f216c0369530cf at main.rs:120
+   117 	    // Okay! Mutable objects can call mutable methods
+   118 	    square.translate(1.0, 1.0);
+   119
+-> 120 	    let pair = Pair(Box::new(1), Box::new(2));
+   121
+   122 	    square.scale(1.0, 0.9);
+   123
+Target 0: (debugger) stopped.
+```
+
+---
+
+# Breakpoints and closures
+
+If we set a breakpoint on the `rectangle2.mutate` method call, execution stops before
+the method is invoked.
+
+```
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+    frame #0: 0x0000000100001918 debugger`debugger::main::h16f216c0369530cf at main.rs:140
+   137 	        Point::new(3.0, 4.0),
+   138 	    );
+   139
+-> 140 	    rectangle2.mutate(|p1, _p2| p1.x = 5.3);
+   141 	    rectangle2.mutate(|p1, p2| {
+   142 	        p1.x = 90.0;
+   143 	        p2.y = -3.2;
+Target 0: (debugger) stopped.
+```
+
+However, if we continue execution (`continue`), we don't appear to move:
+
+```
+(lldb) c
+Process 32460 resuming
+Process 32460 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.2
+    frame #0: 0x0000000100002758 debugger`debugger::main::_$u7b$$u7b$closure$u7d$$u7d$::h9ac3779383d84ac9((null)=closure {
+
+}, p1=&0x7fff5fbff780, _p2=&0x7fff5fbff790) at main.rs:140
+   137 	        Point::new(3.0, 4.0),
+   138 	    );
+   139
+-> 140 	    rectangle2.mutate(|p1, _p2| p1.x = 5.3);
+   141 	    rectangle2.mutate(|p1, p2| {
+   142 	        p1.x = 90.0;
+   143 	        p2.y = -3.2;
+Target 0: (debugger) stopped.
+```
+
+---
+
+# Breakpoints and closures
+
+If we look closely, there are actually two breakpoints on that line - one before calling the
+method, and the other inside of the closure.
+
+```rust
+    rectangle2.mutate(|p1, _p2| p1.x = 5.3);
+```
+
+It is often nicer to debug code written in this style:
+
+```rust
+    rectangle2.mutate(|p1, p2| {
+        p1.x = 90.0;
+        p2.y = -3.2;
+    });
+```
+
+This makes it easier to set breakpoints on the line that is intended.
+
+---
+
+# Challenge
+
+Open the `debugger2` crate. You will find a small (but real) library that implements a
+Least Recently Used (LRU) cache - a fixed-size cache that reorders its contents whenever
+an element is accessed, and evicts the last entry when adding a new one.
+
+A small modification has been made to the code to make one of the unit tests fail.
+
+Run `cargo test`, then see if you can use your debugger to investigate why the test
+is failing. Like when learning any new skill, try to stay in the debugger
+(and your editor) as much as possible.
+
+1. launch the unit test inside the debugger
+2. set a breakpoint inside the failing test
+3. try stepping through parts of the new code to understand what's being executed
+4. focus on whether the code being executed matches the documentation
+
+---
+
+# Record and Replay
+
+Rather than debugging a live program, record and replay debugging makes a recording of
+a single program execution then replays it as many times as needed.
+
+This means:
+* program behaviour is deterministic every time it is replayed
+* program timing is unaffected by your actions in the debugger
+* you can step backwards, not just forwards
+
+Unforatunately [rr](https://rr-project.org) only works on Linux (or in VMWare).
+
+---
+class: center, middle
+
+# That's all!
+
+### Let me know what else is challenging about debugging Rust programs.
+
+[@lastontheboat](https://twitter.com/lastontheboat) - [Josh Matthews](https://joshmatthews.net)
+
+<pre style="font-size: 12px">
+</pre>
+ 
+    </textarea>
+    <script src="remark.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
