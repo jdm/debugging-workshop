@@ -1,13 +1,8 @@
 //! Exercise for using logging statements appropriately.
 //!
-//! This exercise contains many println! statements which
-//! should not be released as part of making the code public.
-//! It would be better to add useful logging statements with
-//! appropriate severity levels to the MemoryBuffer API instead.
-//!
 //! 1) Integrate the `log` and `env_logger` crates
-//! 2) Choose where new logging calls make sense
-//! 3) Verify that RUST_LOG works as expected
+//! 2) Add appropriate logging to the methods of the MemoryBuffer type
+//! 3) Verify that RUST_LOG works as expected when running `cargo run`
 
 use std::fmt::{self, Debug};
 use std::ops::{Deref, DerefMut};
