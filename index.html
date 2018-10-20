@@ -19,11 +19,15 @@
   <body>
     <textarea id="source">
 
-class: center, middle
+class: center, middle, right
 
 # Where We're Going, We Don't Need Println!
 
 ### (except that sometimes we do)
+
+#### Josh Matthews, Mozilla, 2018
+
+###### [@lastontheboat](https://twitter.com/lastontheboat)
 
 ???
 
@@ -32,6 +36,8 @@ Notes for the _first_ slide!
 ---
 
 # Agenda
+
+0. `git clone https://github.com/jdm/debugging-workshop`
 
 1. Effective println!
 
@@ -422,6 +428,13 @@ It does not force any particular output.
 ---
 
 # The `log` crate
+
+To use:
+
+```rust
+#[macro_use]
+extern crate log;
+```
 
 API:
 
